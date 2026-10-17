@@ -23,6 +23,8 @@ public class CiudadDecorada extends CiudadIluminada {
     private float tiempoSemaforo = 0;
     private boolean mostrarMapa = true;
 
+    private final List<VehiculoAutonomo> trafico = new ArrayList<>();
+
     public CiudadDecorada() {
         for (int fila = MAPA.length - 1; fila >= 0; fila--) {    // de sur a norte
             for (int columna = 0; columna < MAPA[fila].length; columna++) {
@@ -31,6 +33,10 @@ public class CiudadDecorada extends CiudadIluminada {
                 }
             }
         }
+
+        trafico.add(new VehiculoAutonomo(ruta(0, 10, 10, 10, 10, 0, 0, 0), 8, 0.95f, 0.75f, 0.10f));   // borde
+        trafico.add(new VehiculoAutonomo(ruta(2, 2, 2, 8, 8, 8, 8, 2), 7, 0.15f, 0.45f, 0.90f));       // anillo
+        trafico.add(new VehiculoAutonomo(ruta(4, 4, 4, 6, 6, 6, 6, 4), 5, 0.20f, 0.75f, 0.35f));       // bloque central
     }
 
     @Override
@@ -40,9 +46,10 @@ public class CiudadDecorada extends CiudadIluminada {
             decorarCiudad(); // Añade árboles, bancos, ventanas y señalización urbana.
         }
         dibujarDestino();
+        dibujarTrafico();
     }
 
-    @Override // Amplía las teclas definidas por clase3.
+    @Override // Amplía las teclas definidas por CuidadIluminada.
     protected void tecla(int key) {
         super.tecla(key); // Conserva salida, cámara, reinicio y luces.
         if (key == GLFW_KEY_M) { // Comprueba si se pulsó la tecla del mapa.
@@ -60,6 +67,10 @@ public class CiudadDecorada extends CiudadIluminada {
         tiempoSemaforo = (tiempoSemaforo + deltaTime) % CICLO;
         tiempoTotal += deltaTime;
         comprobarEntrega();
+
+        for (VehiculoAutonomo v : trafico) {
+            v.actualizar(deltaTime);
+        }
     }
 
     private void decorarCiudad() {
@@ -74,7 +85,7 @@ public class CiudadDecorada extends CiudadIluminada {
                 }
 
                 if (tipo == 1) {                                          // edificio
-                    dibujarVentanas(x, z, alturaEdificio(fila, columna));
+                    dibujarVentanas(x, z, alturaEdificio(fila, columna), fila * 31 + columna * 17);
                 }
 
                 if (fila % 4 == 1 && columna % 4 == 1) {            // índices 1, 5 y 9 (siempre son manzanas)
@@ -85,19 +96,32 @@ public class CiudadDecorada extends CiudadIluminada {
         }
     }
 
-    private void dibujarVentanas(float x, float z, float altura) {
-        if (noche) {
-            vector("uEmision", 1.0f, 0.85f, 0.5f);       // de noche las ventanas brillan
-        }
-        for (float y = 2; y < altura - 0.5f; y += 3) {
-            for (float d = -2; d <= 2; d += 2) {
-                caja(x + d, y, z - 3.52f, 1.2f, 1.2f, 0.06f, 0.15f, 0.27f, 0.38f);   // norte
-                caja(x + d, y, z + 3.52f, 1.2f, 1.2f, 0.06f, 0.15f, 0.27f, 0.38f);   // sur
-                caja(x - 3.52f, y, z + d, 0.06f, 1.2f, 1.2f, 0.15f, 0.27f, 0.38f);   // oeste
-                caja(x + 3.52f, y, z + d, 0.06f, 1.2f, 1.2f, 0.15f, 0.27f, 0.38f);   // este
+    private void dibujarVentanas(float x, float z, float altura, int semilla) {
+        for (int piso = 0; 2 + piso * 3 < altura - 0.5f; piso++) {      // un piso cada 3 m
+            float y = 2 + piso * 3;
+            for (int k = 0; k < 3; k++) {                               // tres ventanas por fachada
+                float d = (k - 1) * 2;                                  // -2, 0, 2
+                ventana(x + d, y, z - 3.52f, 1.2f, 0.06f, encendida(semilla, piso, k, 0));   // norte
+                ventana(x + d, y, z + 3.52f, 1.2f, 0.06f, encendida(semilla, piso, k, 1));   // sur
+                ventana(x - 3.52f, y, z + d, 0.06f, 1.2f, encendida(semilla, piso, k, 2));   // oeste
+                ventana(x + 3.52f, y, z + d, 0.06f, 1.2f, encendida(semilla, piso, k, 3));   // este
             }
         }
-        vector("uEmision", 0, 0, 0);                     // restablece la emisión
+    }
+
+    private boolean encendida(int semilla, int piso, int k, int cara) {
+        int valor = semilla + piso * 13 + k * 7 + cara * 11;
+        return noche && Math.floorMod(valor, 5) < 3;                    // de noche, unas 3 de cada 5
+    }
+
+    private void ventana(float x, float y, float z, float sx, float sz, boolean encendida) {
+        if (encendida) {
+            vector("uEmision", 1.0f, 0.85f, 0.5f);                      // esta ventana brilla
+        }
+        caja(x, y, z, sx, 1.2f, sz, 0.15f, 0.27f, 0.38f);
+        if (encendida) {
+            vector("uEmision", 0, 0, 0);
+        }
     }
 
    private void pasoPeatonal(float x, float z) {
@@ -226,6 +250,42 @@ public class CiudadDecorada extends CiudadIluminada {
         float flotar = 0.4f * (float) Math.sin(tiempoTotal * 2);
         cajaGirada(d[0], 3.5f + flotar, d[1], 1.4f, 1.4f, 1.4f, 0.2f, 1.0f, 0.6f, tiempoTotal);   // cubo que sube, baja y gira
         vector("uEmision", 0, 0, 0);
+    }
+
+    private float[][] ruta(int... nodos) {
+        float[][] puntos = new float[nodos.length / 2][2];
+        for (int i = 0; i < puntos.length; i++) {
+            puntos[i][0] = centro(nodos[i * 2 + 1]);     // x sale de la columna
+            puntos[i][1] = centro(nodos[i * 2]);         // z sale de la fila
+        }
+        return puntos;
+    }
+
+    private void dibujarTrafico() {
+        for (VehiculoAutonomo v : trafico) {
+            if (vistaMapa) {
+                cajaGirada(v.x, 13.5f, v.z, 3, 0.5f, 5, v.r, v.g, v.b, v.angulo);   // en el minimapa: marcador agrandado
+            } else {
+                dibujarAutoAutonomo(v);
+            }
+        }
+    }
+
+    private void dibujarAutoAutonomo(VehiculoAutonomo v) {
+        piezaDe(v, 0, 0.65f, 0, 1.65f, 0.55f, 2.6f, v.r, v.g, v.b);                  // carrocería
+        piezaDe(v, 0, 1.12f, 0.12f, 1.3f, 0.55f, 1.25f, 0.22f, 0.30f, 0.38f);        // cabina
+        for (float x : new float[] { -0.88f, 0.88f }) {
+            for (float z : new float[] { -0.82f, 0.82f }) {
+                piezaDe(v, x, 0.38f, z, 0.24f, 0.58f, 0.6f, 0.06f, 0.06f, 0.07f);    // ruedas
+            }
+        }
+    }
+
+    private void piezaDe(VehiculoAutonomo v, float x, float y, float z,
+                        float sx, float sy, float sz, float r, float g, float b) {
+        float coseno = (float) Math.cos(v.angulo);
+        float seno = (float) Math.sin(v.angulo);
+        cajaGirada(v.x + coseno * x + seno * z, y, v.z - seno * x + coseno * z, sx, sy, sz, r, g, b, v.angulo);
     }
 
     public static void main(String[] args) {
