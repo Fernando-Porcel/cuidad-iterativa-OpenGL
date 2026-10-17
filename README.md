@@ -2,7 +2,7 @@
 
 Actividad práctica de Programación Gráfica: ampliación de una ciudad interactiva.
 
-Proyecto en Java 17 con Maven, LWJGL 3.3.3, GLFW y OpenGL 3.3 Core. Parte del proyecto base visto en clase (una ciudad de 7 × 7 con un auto) y lo amplía a una ciudad de **11 × 11** con iluminación de día y de noche, farolas, faros, decoración urbana, semáforos animados, minimapa y un recorrido de entregas.
+Proyecto en Java 17 con Maven, LWJGL 3.3.3, GLFW y OpenGL 3.3 Core. Parte del proyecto base visto en clase (una ciudad de 7 × 7 con un auto) y lo amplía a una ciudad de **11 × 11** con iluminación de día y de noche, farolas, faros, decoración urbana, semáforos animados, minimapa, tráfico autónomo, tres cámaras y un recorrido de entregas.
 
 Todo se dibuja con código a partir de un único cubo que se escala, gira y traslada. No usa imágenes ni modelos externos.
 
@@ -27,17 +27,18 @@ mvn compile exec:exec "-DmainClass=com.graphics.CiudadIluminada"
 mvn compile exec:exec "-DmainClass=com.graphics.CiudadDecorada"
 ```
 
-Desde VS Code: abre la carpeta del proyecto (la que contiene pom.xml) con las extensiones de Java instaladas y usa el botón Run que aparece sobre el main de cada clase. Cada clase se ejecuta como la etapa que representa; para la versión final, ejecuta CiudadDecorada.
+**Desde VS Code:** abre la carpeta del proyecto (la que contiene `pom.xml`) con las extensiones de Java instaladas y usa el botón **Run** que aparece sobre el `main` de cada clase. Cada clase se ejecuta como la etapa que representa; para la versión final, ejecuta `CiudadDecorada`.
 
 Notas:
 
+- Las comillas alrededor de `-DmainClass=...` son necesarias en PowerShell (Windows), que de otro modo interpreta mal el punto del nombre de la clase. En otras terminales no estorban.
 - Usa `exec:exec`, no `exec:java`.
 - En macOS, el perfil de Maven agrega `-XstartOnFirstThread`. Si ejecutas desde un IDE en Mac, agrega ese argumento a las opciones de la JVM.
 - El `pom.xml` incluye las bibliotecas nativas para Windows, Linux (x64 y ARM64) y macOS (Intel y Apple Silicon).
 
 ## Cómo está organizado el código
 
-Cada clase hereda de la anterior y agrega una responsabilidad. Cada una tiene su propio `main`, así que se puede ejecutar como una etapa.
+Cada clase de la cadena hereda de la anterior y agrega una responsabilidad. Cada una tiene su propio `main`, así que se puede ejecutar como una etapa. Aparte hay una clase pequeña, `VehiculoAutonomo`, que representa a un auto con ruta propia y que usa `CiudadDecorada`.
 
 ```text
 AppCuidad: ventana, renderizador, mapa de la ciudad
@@ -49,11 +50,12 @@ AppCuidad: ventana, renderizador, mapa de la ciudad
 | Clase | Responsabilidad |
 |---|---|
 | `AppCuidad` | Crea la ventana y el ciclo de dibujo, define el mapa, dibuja el suelo, las calles, los edificios y los parques. |
-| `Vehiculo` | Dibuja el auto, lo maneja con el tiempo entre cuadros, detecta colisiones y controla las cámaras. |
+| `Vehiculo` | Dibuja el auto, lo maneja con el tiempo entre cuadros, detecta colisiones y controla las cámaras (tercera persona, primera persona y aérea). |
 | `CiudadIluminada` | Alterna día y noche, y agrega las farolas y los faros del auto. |
-| `CiudadDecorada` | Agrega ventanas, árboles, bancos, pasos peatonales, semáforos, las entregas y el minimapa. |
+| `CiudadDecorada` | Agrega ventanas, árboles, bancos, pasos peatonales, semáforos, el tráfico autónomo, las entregas y el minimapa. |
+| `VehiculoAutonomo` | Guarda la posición, la orientación, la velocidad y la ruta de un auto que circula solo, y lo mueve en cada cuadro. No tiene `main`. |
 
-Las etapas posteriores necesitan los archivos anteriores: `extends` reutiliza lo hecho y `super.escena()` dibuja lo anterior antes de agregar contenido nuevo.
+Las etapas posteriores necesitan los archivos anteriores (y `CiudadDecorada` también necesita `VehiculoAutonomo`): `extends` reutiliza lo hecho y `super.escena()` dibuja lo anterior antes de agregar contenido nuevo.
 
 ## Diseño de la ciudad
 
@@ -90,10 +92,24 @@ El mapa es una matriz de **11 × 11** celdas. Cada celda mide 10 × 10 unidades 
 
 ### Decoración urbana
 
-- **Ventanas** en las cuatro fachadas de cada edificio. De noche se ven encendidas.
+- **Ventanas** en las cuatro fachadas de cada edificio. De noche, unas se ven encendidas y otras apagadas; el patrón es distinto en cada edificio, pero siempre el mismo para la misma ventana.
 - **Parques** con tres árboles y un banco (orientado al oeste).
 - **Pasos peatonales** junto a los semáforos, cruzando la calle que cada semáforo regula.
 - **Semáforos animados:** 9 semáforos, con una secuencia repetitiva de verde, amarillo y rojo que depende del tiempo (ciclo de 12 segundos). Sus luces miran al norte y al sur.
+
+### Tráfico autónomo
+
+- **Tres autos** de colores (amarillo, azul y verde) circulan solos, sin intervención del usuario.
+- Cada uno sigue una ruta por las calles, pasando por intersecciones: el amarillo recorre el borde de la ciudad, el azul un anillo intermedio y el verde rodea la manzana central. Al terminar la ruta, la repiten.
+- Hacen giros suaves en las esquinas y mantienen su posición, orientación y velocidad (entre 18 y 29 km/h).
+- Las rutas siguen el centro de las calles, así que no atraviesan edificios ni salen del mapa. Las tres rutas no comparten tramos ni se cruzan entre sí.
+- Aparecen en el minimapa con su color.
+
+### Cámaras
+
+- **Tercera persona:** la cámara sigue al auto desde atrás y arriba (vista por defecto).
+- **Primera persona (`V`):** la cámara se coloca a la altura del conductor, por delante de la cabina, y mira hacia donde apunta el auto.
+- **Aérea (`C`):** una vista general de la ciudad.
 
 ### Entregas
 
@@ -119,7 +135,8 @@ El mapa es una matriz de **11 × 11** celdas. Cada celda mide 10 × 10 unidades 
 | `W` / `S` o flechas arriba / abajo | Acelerar y frenar o retroceder |
 | `A` / `D` o flechas izquierda / derecha | Girar mientras el auto se mueve |
 | `Espacio` | Freno |
-| `C` | Cámara de seguimiento / cámara aérea |
+| `C` | Cámara aérea / vista de conducción |
+| `V` | Primera persona / tercera persona |
 | `N` | Día / noche |
 | `F` | Encender / apagar los faros |
 | `M` | Mostrar / ocultar el minimapa |
@@ -161,13 +178,13 @@ El título de la ventana muestra la velocidad (en km/h, suponiendo que 1 unidad 
 
 | Método | Para qué sirve |
 |---|---|
-| `tecla(key)` | Atiende `C` (cambiar de cámara) y `R` (reiniciar). |
+| `tecla(key)` | Atiende `C` (cámara aérea), `V` (primera o tercera persona) y `R` (reiniciar). |
 | `reiniciar()` | Devuelve el auto a su posición inicial, con velocidad cero. |
 | `actualizar(deltaTime)` | Maneja el auto: acelera, frena, gira y avanza según el tiempo transcurrido. |
 | `actualizarTitulo()` | Escribe la velocidad y el estado en el título de la ventana. |
 | `estadosExtras()` | Texto adicional para el título, que completan las clases hijas. |
 | `puedeCircular(x, z)` | Comprueba si el auto puede ocupar una posición sin chocar con una manzana ni salir del mapa. |
-| `configurarCamara()` | Coloca la cámara detrás del auto o, con `C`, usa la cámara aérea. |
+| `configurarCamara()` | Coloca la cámara según el modo elegido: detrás del auto, a la altura del conductor o aérea. |
 | `escena()` | Dibuja la ciudad y encima el auto. |
 | `dibujarAuto()` | Dibuja el auto con cajas: carrocería, cabina, ruedas y faros. |
 | `pieza(...)` | Dibuja una pieza del auto de modo que gire junto con él. |
@@ -191,25 +208,39 @@ El título de la ventana muestra la velocidad (en km/h, suponiendo que 1 unidad 
 
 | Método | Para qué sirve |
 |---|---|
-| Constructor | Calcula los destinos de las entregas (uno por parque). |
+| Constructor | Calcula los destinos de las entregas (uno por parque) y crea los tres autos autónomos con sus rutas. |
 | `tecla(key)` | Atiende `M` (minimapa) y hace que `R` también reinicie las entregas. |
-| `actualizar(deltaTime)` | Avanza el reloj de los semáforos y comprueba si el auto llegó al destino. |
+| `actualizar(deltaTime)` | Avanza el reloj de los semáforos, mueve los autos autónomos y comprueba si el auto llegó al destino. |
 | `comprobarEntrega()` | Detecta si el auto está dentro de la plataforma del destino activo y pasa al siguiente. |
 | `estadosExtras()` | Agrega el avance de las entregas al título. |
-| `escena()` | Dibuja lo anterior, la decoración y el destino activo. |
+| `escena()` | Dibuja lo anterior, la decoración, los autos autónomos y el destino activo. |
 | `decorarCiudad()` | Recorre el mapa y coloca la decoración que corresponde a cada celda. |
-| `dibujarVentanas(x, z, altura)` | Dibuja las ventanas de un edificio. |
+| `dibujarVentanas(x, z, altura, semilla)` | Dibuja las ventanas de un edificio. |
+| `encendida(...)` | Decide si una ventana está encendida de noche, con un patrón fijo. |
+| `ventana(...)` | Dibuja una ventana, con brillo propio si está encendida. |
 | `dibujarParque(x, z)` | Coloca los árboles y el banco de un parque. |
 | `arbol(x, z)` y `banco(x, z)` | Dibujan un árbol y un banco. |
 | `pasoPeatonal(x, z)` | Dibuja un paso peatonal. |
 | `estadoSemaforo()` | Dice qué luz del semáforo toca encender según el tiempo. |
 | `dibujarSemaforo(x, z)` | Dibuja un semáforo con su luz encendida. |
+| `ruta(...)` | Convierte una lista de intersecciones del mapa en los puntos por los que pasa un auto autónomo. |
+| `dibujarTrafico()` | Dibuja los autos autónomos (y un marcador de color en el minimapa). |
+| `dibujarAutoAutonomo(v)` y `piezaDe(...)` | Dibujan un auto autónomo con cajas, en su posición y orientación. |
 | `dibujarDestino()` | Dibuja la plataforma y el cubo flotante del destino activo. |
 | `dibujarFrame()` | Dibuja la vista principal y, si está activo, el minimapa encima. |
 | `dibujarMinimapa()` | Calcula el recuadro de la esquina y coordina el dibujo del minimapa. |
 | `rellenarRecuadro(...)` | Pinta el marco y el fondo del minimapa sin tocar el resto de la pantalla. |
 | `dibujarCiudadDesdeArriba()` | Dibuja la ciudad vista desde arriba para el minimapa. |
 | `main()` | Ejecuta la versión final. |
+
+### `VehiculoAutonomo`
+
+| Método | Para qué sirve |
+|---|---|
+| Constructor | Crea el auto en el primer punto de su ruta, mirando hacia el segundo. |
+| `actualizar(deltaTime)` | Hace avanzar el auto hacia el siguiente punto de la ruta, girando poco a poco, y pasa al siguiente punto al llegar. |
+| `anguloHacia(dx, dz)` | Calcula hacia dónde debe mirar el auto para ir a un punto. |
+| `diferencia(meta, actual)` | Calcula cuánto le falta girar, siempre por el lado más corto. |
 
 ## Limitaciones
 
@@ -219,15 +250,26 @@ El título de la ventana muestra la velocidad (en km/h, suponiendo que 1 unidad 
 - Los faros iluminan la calle y las paredes, pero las cajas que los representan en el auto no brillan.
 - Los pasos peatonales están solo junto a los semáforos (9 en total), no en todas las calles.
 - La decoración se dibuja con muchas cajas por cuadro y no está optimizada. En el minimapa se omiten los detalles pequeños.
-- No incluye tráfico autónomo, peatones, sonido ni modelos importados.
-- No se implementaron las mejoras opcionales (tráfico autónomo e interfaz dentro de la ventana). El indicador de estado está en el título de la ventana.
+- Los autos autónomos no chocan con el auto del jugador y no obedecen los semáforos. Siguen rutas fijas por el centro de las calles.
+- No incluye peatones, sonido ni modelos importados.
+- De las mejoras opcionales se implementó el tráfico autónomo. No se implementó el panel dentro de la ventana: el indicador de estado sigue en el título.
+- En primera persona no hay parabrisas ni tablero: se ve el capó del auto y el camino.
 
 ## Prueba manual sugerida
 
 1. Ejecutar `mvn compile exec:exec`.
 2. Conducir por toda la ciudad y chocar contra edificios nuevos y contra el borde del mapa.
-3. Cambiar de cámara con `C`.
-4. Probar `N`, `F` y `M`.
-5. Redimensionar la ventana y comprobar que el minimapa conserva su forma y su esquina.
-6. Completar las 4 entregas y comprobar que el título lo indica.
-7. Presionar `R` y comprobar que comienza un nuevo recorrido.
+3. Cambiar de cámara con `C` (aérea) y `V` (primera y tercera persona).
+4. Probar `N`, `F` y `M`, y comprobar que de noche solo algunas ventanas están encendidas.
+5. Observar los tres autos autónomos: deben seguir las calles, girar en las esquinas y verse también en el minimapa.
+6. Redimensionar la ventana y comprobar que el minimapa conserva su forma y su esquina.
+7. Completar las 4 entregas y comprobar que el título lo indica.
+8. Presionar `R` y comprobar que comienza un nuevo recorrido.
+
+## Recursos y fragmentos externos
+
+- **Proyecto base de clase:** las clases del proyecto base hechas con el profesor (ciudad de 7 × 7, renderizador, auto, conducción y colisiones) son el punto de partida de este trabajo.
+- **Minimapa:** la técnica (un segundo dibujo del cuadro en un recuadro, con `glViewport`, `glScissor` y una proyección vista desde arriba en el shader) se basa en el ejemplo visto en clase. Se reorganizó en métodos propios y se adaptó al mapa de 11 × 11 con un alcance configurable (`uAlcanceMapa`).
+- **Pasos peatonales:** las proporciones de las franjas se tomaron como referencia de una solución de un compañero de clase.
+- **Asistente de IA:** se usó Claude (Anthropic) como apoyo para guiar la implementación paso a paso y explicar los conceptos de OpenGL.
+- No se usaron imágenes, modelos, texturas ni bibliotecas externas aparte de LWJGL.
