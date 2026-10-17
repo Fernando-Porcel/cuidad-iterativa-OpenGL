@@ -8,6 +8,7 @@ public class Vehiculo extends AppCuidad{
     protected float angulo;
     private float velocidad;
     private boolean camaraArea = false;
+    private boolean primeraPersona = false;
     private static final float RADIO_AUTO = 1.65f;
 
     //---------- TECLADO ------------
@@ -21,6 +22,10 @@ public class Vehiculo extends AppCuidad{
 
         if (key == GLFW_KEY_R) {
             reiniciar();
+        }
+
+        if (key == GLFW_KEY_V) {
+            primeraPersona = !primeraPersona;
         }
     }
 
@@ -89,6 +94,7 @@ public class Vehiculo extends AppCuidad{
         titulo += " | WASD/flechas: conducir | Espacio: freno";
         titulo += " | C: Camara | R: Reiniciar ";
         titulo += kilometrosPorHora + " Km/h";
+        titulo += " | C: Camara aerea | V: 1a/3a persona | R: Reiniciar ";
         titulo += estadosExtras();
         glfwSetWindowTitle(ventana, titulo);
     }
@@ -132,6 +138,17 @@ public class Vehiculo extends AppCuidad{
     protected void configurarCamara() {
         if (camaraArea) {
             super.configurarCamara();
+            return;
+        }
+
+        if (primeraPersona) {
+            float frenteX = -(float) Math.sin(angulo);                  // hacia dónde mira el auto
+            float frenteZ = -(float) Math.cos(angulo);
+            float ojoX = autoX + frenteX * 0.6f;                        // 0.6 m por delante del centro del auto
+            float ojoZ = autoZ + frenteZ * 0.6f;
+            vector("uOjo", ojoX, 1.3f, ojoZ);
+            vector("uObjetivo", ojoX + frenteX * 10, 1.0f, ojoZ + frenteZ * 10);   // mira 10 m hacia delante
+            decimal("uAspecto", (float) ancho / alto);
             return;
         }
 
