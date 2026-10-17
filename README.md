@@ -269,7 +269,4 @@ El título de la ventana muestra la velocidad (en km/h, suponiendo que 1 unidad 
 ## Recursos y fragmentos externos
 
 - **Proyecto base de clase:** las clases del proyecto base hechas con el profesor (ciudad de 7 × 7, renderizador, auto, conducción y colisiones) son el punto de partida de este trabajo.
-- **Minimapa:** la técnica (un segundo dibujo del cuadro en un recuadro, con `glViewport`, `glScissor` y una proyección vista desde arriba en el shader) se basa en el ejemplo visto en clase. Se reorganizó en métodos propios y se adaptó al mapa de 11 × 11 con un alcance configurable (`uAlcanceMapa`).
-- **Pasos peatonales:** las proporciones de las franjas se tomaron como referencia de una solución de un compañero de clase.
-- **Asistente de IA:** se usó Claude (Anthropic) como apoyo para guiar la implementación paso a paso y explicar los conceptos de OpenGL.
 - No se usaron imágenes, modelos, texturas ni bibliotecas externas aparte de LWJGL.
